@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: mr-admin
+server:
+  port: 8080

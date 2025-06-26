@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: mr-crawler
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
+
+xiachufang:
+  base-url: https://www.xiachufang.com
+server:
+  port: 8082
+
+# 反反爬虫配置
+crawler:
+  # 爬取延迟配置（毫秒）
+  min-delay:  500     # 最小延迟时间，默认0.5秒
+  max-delay: 1000     # 最大延迟时间，默认1秒
