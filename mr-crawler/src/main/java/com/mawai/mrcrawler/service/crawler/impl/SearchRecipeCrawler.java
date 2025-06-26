@@ -7,8 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-
 @Slf4j
 @Service
 public class SearchRecipeCrawler extends WebCrawler<PageAndRecipes> {
@@ -18,7 +16,7 @@ public class SearchRecipeCrawler extends WebCrawler<PageAndRecipes> {
      * @return 食谱列表
      */
     @Override
-    public PageAndRecipes crawl(String keyword) throws IOException {
+    public PageAndRecipes crawl(String keyword) {
         try {
             // 构建搜索页面URL
             String url = siteConfig.getBaseUrl() + "/search/?keyword=" + keyword + "&cat=1001";

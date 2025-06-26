@@ -108,7 +108,7 @@ public class WebClientConfig {
     private class DelayInterceptor implements Interceptor {
         @NotNull
         @Override
-        public Response intercept(Chain chain) throws IOException {
+        public Response intercept(@NotNull Chain chain) throws IOException {
             try {
                 // 随机延迟
                 int delay = crawlerConfig.getRandomDelay();

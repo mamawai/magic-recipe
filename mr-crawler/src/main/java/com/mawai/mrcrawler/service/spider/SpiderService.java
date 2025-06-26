@@ -2,8 +2,6 @@ package com.mawai.mrcrawler.service.spider;
 
 import com.mawai.mrcrawler.model.*;
 
-import java.util.Map;
-
 /**
  * 爬虫服务接口
  */

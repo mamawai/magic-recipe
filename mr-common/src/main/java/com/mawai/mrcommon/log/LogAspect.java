@@ -36,7 +36,7 @@ public class LogAspect {
     }
 
     @Before("webLog()")
-    public void doBefore(JoinPoint joinPoint) throws Throwable {
+    public void doBefore(JoinPoint joinPoint) {
         // 记录开始时间
         startTimeThreadLocal.set(System.currentTimeMillis());
         
@@ -63,7 +63,7 @@ public class LogAspect {
     }
 
     @AfterReturning(value = "webLog()", returning = "result")
-    public void doAfterReturning(JoinPoint joinPoint, Object result) throws Throwable {
+    public void doAfterReturning(JoinPoint joinPoint, Object result) {
         // 构建返回日志信息
         Map<String, Object> webLog = new HashMap<>();
         webLog.put("type", "Return Result");
@@ -76,7 +76,7 @@ public class LogAspect {
     }
 
     @After("webLog()")
-    public void doAfter() throws Throwable {
+    public void doAfter() {
         // 计算并记录执行时间
         long executionTime = System.currentTimeMillis() - startTimeThreadLocal.get();
         

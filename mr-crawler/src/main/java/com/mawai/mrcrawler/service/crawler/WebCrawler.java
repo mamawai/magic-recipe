@@ -37,8 +37,6 @@ public abstract class WebCrawler<T> {
     @Autowired
     protected Parser<PageAndRecipes> pageAndRecipesParser;
 
-    // Redis键值定义
-    protected static final String SEARCH_RECIPES_CACHE_KEY = "crawler:search:";
     protected static final int MAX_RETRY_COUNT = 5;
 
     /**
