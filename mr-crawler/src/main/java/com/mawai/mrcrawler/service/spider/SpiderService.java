@@ -26,7 +26,7 @@ public interface SpiderService {
      * @param keyword 关键词
      * @return 搜索结果和分页信息
      */
-    ApiResponse<PageAndRecipes> searchRecipes(String keyword);
+    ApiResponse<PageAndRecipes> searchRecipes(String keyword, int page);
 
     /**
      * 获取食谱详情

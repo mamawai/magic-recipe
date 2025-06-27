@@ -130,9 +130,7 @@ public class SpiderServiceImpl implements SpiderService {
     public ApiResponse<PageAndRecipes> getCategoryRecipes(String category, int page) {
         try {
             String url = siteConfig.getBaseUrl() + "/category/" + category + "/";
-            if (page > 1) {
-                url += "?page=" + page;
-            }
+            if (page > 1) url += "?page=" + page;
             CATEGORY_RECIPES_RETRY_TASK_KEY = CATEGORY_RECIPES_RETRY_TASK_KEY + url;
             CATEGORY_RECIPES_CACHE_KEY = CATEGORY_RECIPES_CACHE_KEY + url;
             CATEGORY_RECIPES_LOCK_KEY = CATEGORY_RECIPES_LOCK_KEY + url;
@@ -210,12 +208,14 @@ public class SpiderServiceImpl implements SpiderService {
     }
 
     @Override
-    public ApiResponse<PageAndRecipes> searchRecipes(String keyword) {
+    public ApiResponse<PageAndRecipes> searchRecipes(String keyword, int page) {
         try {
             String searchKey = keyword.trim();
-            SEARCH_RECIPES_RETRY_TASK_KEY = SEARCH_RECIPES_RETRY_TASK_KEY + searchKey;
-            SEARCH_RECIPES_CACHE_KEY = SEARCH_RECIPES_CACHE_KEY + searchKey;
-            SEARCH_RECIPES_LOCK_KEY = SEARCH_RECIPES_LOCK_KEY + searchKey;
+            SEARCH_RECIPES_RETRY_TASK_KEY = SEARCH_RECIPES_RETRY_TASK_KEY + searchKey +":"+  page;
+            SEARCH_RECIPES_CACHE_KEY = SEARCH_RECIPES_CACHE_KEY + searchKey +":"+  page;
+            SEARCH_RECIPES_LOCK_KEY = SEARCH_RECIPES_LOCK_KEY + searchKey +":"+  page;
+
+            if (page > 1) keyword = keyword + "&page=" + page;
 
             // 1. 先检查Redis缓存
             PageAndRecipes cachedSearchResults = cacheService.get(SEARCH_RECIPES_CACHE_KEY);

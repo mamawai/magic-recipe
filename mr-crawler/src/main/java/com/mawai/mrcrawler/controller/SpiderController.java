@@ -48,8 +48,11 @@ public class SpiderController {
      */
     @Operation(summary = "搜索食谱", description = "搜索指定关键词的食谱列表")
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<PageAndRecipes>> searchRecipes(@RequestParam String keyword) {
-        ApiResponse<PageAndRecipes> response = spiderService.searchRecipes(keyword);
+    public ResponseEntity<ApiResponse<PageAndRecipes>> searchRecipes(
+            @RequestParam String keyword,
+            @RequestParam(required = false, defaultValue = "1") int page) {
+
+        ApiResponse<PageAndRecipes> response = spiderService.searchRecipes(keyword, page);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
