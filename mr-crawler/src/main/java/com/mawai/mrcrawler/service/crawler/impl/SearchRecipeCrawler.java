@@ -39,6 +39,50 @@ public class SearchRecipeCrawler extends WebCrawler<PageAndRecipes> {
         }
     }
 
+    @Override
+    public <R> void saveToDb(R result, String args) {
+        // /search/?keyword=白菜&page=3&cat=1001
+        try {
+            // 提取keyword参数
+            String keyword = null;
+            int keywordIndex = args.indexOf("keyword=");
+            if (keywordIndex != -1) {
+                keywordIndex += 8; // "keyword="的长度
+                int endIndex = args.indexOf("&", keywordIndex);
+                if (endIndex == -1) {
+                    endIndex = args.length();
+                }
+                keyword = args.substring(keywordIndex, endIndex);
+            }
+            
+            // 提取page参数，默认为1
+            int page = 1;
+            int pageIndex = args.indexOf("page=");
+            if (pageIndex != -1) {
+                pageIndex += 5; // "page="的长度
+                int endIndex = args.indexOf("&", pageIndex);
+                if (endIndex == -1) {
+                    endIndex = args.length();
+                }
+                try {
+                    page = Integer.parseInt(args.substring(pageIndex, endIndex));
+                } catch (NumberFormatException e) {
+                    log.warn("无法解析页码，使用默认值1: {}", args);
+                }
+            }
+            
+            // 调用数据库服务保存数据
+            if (keyword != null) {
+                dbCacheService.saveSearchRecipes(keyword, page, (PageAndRecipes) result);
+                log.info("已保存搜索结果到数据库: keyword={}, page={}", keyword, page);
+            } else {
+                log.warn("无法从URL中提取搜索关键词: {}", args);
+            }
+        } catch (Exception e) {
+            log.error("保存搜索结果到数据库失败: {}", args, e);
+        }
+    }
+
     /**
      * 获取分类解析器
      * @return 分类解析器

@@ -41,6 +41,19 @@ public class RecipeContentCrawler extends WebCrawler<RecipeContent> {
         }
     }
 
+    @Override
+    public <R> void saveToDb(R result, String args) {
+        // /recipe/123456/
+        try {
+            // 只处理格式为"/recipe/123456/"的URL
+            String recipeNo = args.substring(args.indexOf("/recipe/") + 8, args.lastIndexOf("/"));
+            dbCacheService.saveRecipeContent(recipeNo, (RecipeContent) result);
+            log.info("已保存食谱内容到数据库: recipeNo={}", recipeNo);
+        } catch (Exception e) {
+            log.error("保存食谱内容到数据库失败: {}", args, e);
+        }
+    }
+
     /**
      * 获取分类解析器
      * @return 分类解析器

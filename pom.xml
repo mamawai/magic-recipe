@@ -19,6 +19,7 @@
         <module>mr-admin</module>
         <module>mr-common</module>
         <module>mr-crawler</module>
+        <module>mr-mbPlus</module>
     </modules>
 
     <properties>
@@ -29,10 +30,80 @@
         <spring-boot.version>3.5.3</spring-boot.version>
         <jsoup.version>1.15.4</jsoup.version>
         <openapi.version>2.8.4</openapi.version>
+        <pagehelper-starter.version>1.4.5</pagehelper-starter.version>
+        <pagehelper.version>5.3.2</pagehelper.version>
+        <druid.version>1.2.14</druid.version>
+        <mybatis-plus.version>3.5.10</mybatis-plus.version>
+        <velocity.version>2.3</velocity.version>
+        <mysql-connector.version>8.0.29</mysql-connector.version>
+        <mr.version>0.0.1-SNAPSHOT</mr.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+
+            <dependency>
+                <groupId>org.mybatis</groupId>
+                <artifactId>mybatis</artifactId>
+                <version>3.5.19</version>
+            </dependency>
+            <!--mall通用模块-->
+            <dependency>
+                <groupId>com.mawai</groupId>
+                <artifactId>mr-common</artifactId>
+                <version>${mr.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.mawai</groupId>
+                <artifactId>mr-mbPlus</artifactId>
+                <version>${mr.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.velocity</groupId>
+                <artifactId>velocity-engine-core</artifactId>
+                <version>${velocity.version}</version>
+            </dependency>
+            <!-- MyBatis-Plus-->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <!-- MyBatis-Plus 生成器 -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-generator</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <!--Mysql数据库驱动-->
+            <dependency>
+                <groupId>mysql</groupId>
+                <artifactId>mysql-connector-java</artifactId>
+                <version>${mysql-connector.version}</version>
+            </dependency>
+
+            <!--MyBatis分页插件starter-->
+            <dependency>
+                <groupId>com.github.pagehelper</groupId>
+                <artifactId>pagehelper-spring-boot-starter</artifactId>
+                <version>${pagehelper-starter.version}</version>
+            </dependency>
+            <!--MyBatis分页插件-->
+            <dependency>
+                <groupId>com.github.pagehelper</groupId>
+                <artifactId>pagehelper</artifactId>
+                <version>${pagehelper.version}</version>
+            </dependency>
+            <!--集成druid连接池-->
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>druid-spring-boot-starter</artifactId>
+                <version>${druid.version}</version>
+            </dependency>
 
             <!-- HTML解析 -->
             <dependency>
@@ -117,19 +188,4 @@
             <url>https://repo1.maven.org/maven2/</url>
         </repository>
     </repositories>
-
-    <!--使用aliyun的镜像源提升插件下载速度-->
-    <pluginRepositories>
-        <pluginRepository>
-            <id>aliyunmaven</id>
-            <name>aliyun</name>
-            <url>https://maven.aliyun.com/repository/public</url>
-        </pluginRepository>
-        <pluginRepository>
-            <id>central2</id>
-            <name>central2</name>
-            <url>https://repo1.maven.org/maven2/</url>
-        </pluginRepository>
-    </pluginRepositories>
-
 </project>

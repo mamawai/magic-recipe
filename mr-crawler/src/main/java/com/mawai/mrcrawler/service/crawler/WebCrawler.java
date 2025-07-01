@@ -3,6 +3,7 @@ package com.mawai.mrcrawler.service.crawler;
 import com.mawai.mrcrawler.config.SiteConfig;
 import com.mawai.mrcrawler.model.*;
 import com.mawai.mrcrawler.service.cache.CacheService;
+import com.mawai.mrcrawler.service.db.DbCacheService;
 import com.mawai.mrcrawler.service.parser.Parser;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -20,6 +21,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public abstract class WebCrawler<T> {
 
+    @Autowired
+    protected DbCacheService dbCacheService;
     // 网络客户端实例
     @Autowired
     protected OkHttpClient okHttpClient;
@@ -120,6 +123,10 @@ public abstract class WebCrawler<T> {
                     log.info("Successfully crawled data after retry #{}", retryCount + 1);
                     // 更新缓存
                     cacheService.set(cacheKey, result, 12, TimeUnit.HOURS);
+
+                    // save to db
+                    saveToDb(result, args);
+
                     // 删除任务标记
                     cacheService.delete(retryTaskKey);
                 } else {
@@ -139,4 +146,6 @@ public abstract class WebCrawler<T> {
             scheduleRetryCrawl(retryCount + 1, args, retryTaskKey, cacheKey, parser);
         }
     }
+
+    public abstract <R> void saveToDb(R result, String args);
 }

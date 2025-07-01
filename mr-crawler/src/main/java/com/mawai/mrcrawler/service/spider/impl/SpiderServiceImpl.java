@@ -14,6 +14,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -29,40 +32,24 @@ public class SpiderServiceImpl implements SpiderService {
     private final CategoryRecipesCrawler categoryRecipesCrawler;
     private final CacheService cacheService;
 
-    // CATEGORY
-    private static final String CATEGORY_RETRY_TASK_KEY = "crawler:retry:task:categories";
-    private static final String CATEGORY_CACHE_KEY = "crawler:categories";
-    private static final String CATEGORY_LOCK_KEY = "crawler:lock:categories";
-
-    // RECIPE_CONTENT
-    private static String RECIPE_CONTENT_RETRY_TASK_KEY = "crawler:retry:task:recipeContent";
-    private static String RECIPE_CONTENT_CACHE_KEY = "crawler:recipeContent";
-    private static String RECIPE_CONTENT_LOCK_KEY = "crawler:lock:recipeContent";
-
-    // Category_Recipes
-    private static String CATEGORY_RECIPES_RETRY_TASK_KEY = "crawler:retry:task:categoryRecipes";
-    private static String CATEGORY_RECIPES_CACHE_KEY = "crawler:categoryRecipes";
-    private static String CATEGORY_RECIPES_LOCK_KEY = "crawler:lock:categoryRecipes";
-
-    // Search_Recipes
-    private static String SEARCH_RECIPES_RETRY_TASK_KEY = "crawler:retry:task:searchRecipes";
-    private static String SEARCH_RECIPES_CACHE_KEY = "crawler:searchRecipes";
-    private static String SEARCH_RECIPES_LOCK_KEY = "crawler:lock:searchRecipes";
+    // redis key
+    private static final String RETRY_TASK_KEY = "retryTask:crawler:";
+    private static final String CACHE_KEY = "cache:crawler:";
+    private static final String LOCK_KEY = "lock:crawler:";
 
     private static final int LOCK_EXPIRE_SECONDS = 30;
 
     @Override
     public ApiResponse<Category> getCategories() {
         try {
-            // 1. 先检查Redis缓存
-            Category cachedCategory = cacheService.get(CATEGORY_CACHE_KEY);
-            if (cachedCategory != null) {
-                log.info("Returning categories from Redis cache");
-                return ApiResponse.success(cachedCategory);
-            }
-
+            // 1. 先检查Redis缓存 --> 移动到CacheAsideAspect切面类
             // 2. 检查当前是否有异步任务正在执行
-            String taskStatus = cacheService.get(CATEGORY_RETRY_TASK_KEY);
+            List<String> redisKeys = buildRedisKey("getCategories", new ArrayList<>());
+            String cachedKey = redisKeys.get(0);
+            String retryTaskKey = redisKeys.get(1);
+            String lockKey = redisKeys.get(2);
+
+            String taskStatus = cacheService.get(retryTaskKey);
             if (taskStatus != null) {
                 log.info("Async Categories retry task is already running: {}", taskStatus);
                 return ApiResponse.error(
@@ -73,7 +60,7 @@ public class SpiderServiceImpl implements SpiderService {
 
             // 3. 尝试获取分布式锁
             String requestId = UUID.randomUUID().toString();
-            boolean locked = cacheService.setIfAbsent(CATEGORY_LOCK_KEY, requestId, LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+            boolean locked = cacheService.setIfAbsent(lockKey, requestId, LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
 
             if (!locked) {
                 log.info("Another request is processing categories, waiting for result");
@@ -93,8 +80,8 @@ public class SpiderServiceImpl implements SpiderService {
                     categoryCrawler.scheduleRetryCrawl(
                             0,
                             "/category/",
-                            CATEGORY_RETRY_TASK_KEY,
-                            CATEGORY_CACHE_KEY,
+                            retryTaskKey,
+                            cachedKey,
                             categoryCrawler.getCategoryParser()
                     );
 
@@ -103,17 +90,14 @@ public class SpiderServiceImpl implements SpiderService {
                             "Trying to bypass anti-crawling limitations, please try again later"
                     );
                 } else {
-                    // 6. 爬取成功，缓存结果
-                    log.info("Successfully crawled categories, caching result");
-                    cacheService.set(CATEGORY_CACHE_KEY, category, 12, TimeUnit.HOURS);
-
+                    // 6. 爬取成功，返回缓存结果 --> 移动到CacheAsideAspect切面类
                     return ApiResponse.success(category);
                 }
             } finally {
                 // 7. 释放锁，但只释放自己的锁
-                String currentValue = cacheService.get(CATEGORY_LOCK_KEY);
+                String currentValue = cacheService.get(lockKey);
                 if (requestId.equals(currentValue)) {
-                    cacheService.delete(CATEGORY_LOCK_KEY);
+                    cacheService.delete(lockKey);
                     log.info("Lock released for categories request: {}", requestId);
                 }
             }
@@ -131,19 +115,18 @@ public class SpiderServiceImpl implements SpiderService {
         try {
             String url = siteConfig.getBaseUrl() + "/category/" + category + "/";
             if (page > 1) url += "?page=" + page;
-            CATEGORY_RECIPES_RETRY_TASK_KEY = CATEGORY_RECIPES_RETRY_TASK_KEY + url;
-            CATEGORY_RECIPES_CACHE_KEY = CATEGORY_RECIPES_CACHE_KEY + url;
-            CATEGORY_RECIPES_LOCK_KEY = CATEGORY_RECIPES_LOCK_KEY + url;
 
-            // 1. 先检查Redis缓存
-            PageAndRecipes cachedCategoryRecipes = cacheService.get(CATEGORY_RECIPES_CACHE_KEY);
-            if (cachedCategoryRecipes != null) {
-                log.info("Returning categoryRecipes from Redis cache");
-                return ApiResponse.success(cachedCategoryRecipes);
-            }
+            ArrayList<Object> args = new ArrayList<>();
+            args.add(category);
+            args.add(page);
+            List<String> redisKeys = buildRedisKey("getCategoryRecipes", args);
+            String cachedKey = redisKeys.get(0);
+            String retryTaskKey = redisKeys.get(1);
+            String lockKey = redisKeys.get(2);
 
+            // 1. 先检查Redis缓存 --> 移动到CacheAsideAspect切面类
             // 2. 检查当前是否有异步任务正在执行
-            String taskStatus = cacheService.get(CATEGORY_RECIPES_RETRY_TASK_KEY);
+            String taskStatus = cacheService.get(retryTaskKey);
             if (taskStatus != null) {
                 log.info("Async CategoryRecipes retry task is already running: {}", taskStatus);
                 return ApiResponse.error(
@@ -154,7 +137,7 @@ public class SpiderServiceImpl implements SpiderService {
 
             // 3. 尝试获取分布式锁
             String requestId = UUID.randomUUID().toString();
-            boolean locked = cacheService.setIfAbsent(CATEGORY_RECIPES_LOCK_KEY, requestId, LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+            boolean locked = cacheService.setIfAbsent(lockKey, requestId, LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
 
             if (!locked) {
                 log.info("Another request is processing categoryRecipes, waiting for result");
@@ -174,8 +157,8 @@ public class SpiderServiceImpl implements SpiderService {
                     categoryRecipesCrawler.scheduleRetryCrawl(
                             0,
                             "/category/" + category + "/" + (page > 1 ? "?page=" + page : ""),
-                            CATEGORY_RECIPES_RETRY_TASK_KEY,
-                            CATEGORY_RECIPES_CACHE_KEY,
+                            retryTaskKey,
+                            cachedKey,
                             categoryRecipesCrawler.getCategoryRecipesParser()
                     );
 
@@ -184,17 +167,14 @@ public class SpiderServiceImpl implements SpiderService {
                             "Trying to bypass anti-crawling limitations, please try again later"
                     );
                 } else {
-                    // 6. 爬取成功，缓存结果
-                    log.info("Successfully crawled categoryRecipes, caching result");
-                    cacheService.set(CATEGORY_RECIPES_CACHE_KEY, categoryRecipes, 12, TimeUnit.HOURS);
-
+                    // 6. 爬取成功，缓存结果 --> 移动到CacheAsideAspect切面类
                     return ApiResponse.success(categoryRecipes);
                 }
             } finally {
                 // 7. 释放锁，但只释放自己的锁
-                String currentValue = cacheService.get(CATEGORY_RECIPES_LOCK_KEY);
+                String currentValue = cacheService.get(lockKey);
                 if (requestId.equals(currentValue)) {
-                    cacheService.delete(CATEGORY_RECIPES_LOCK_KEY);
+                    cacheService.delete(lockKey);
                     log.info("Lock released for categoryRecipes request: {}", requestId);
                 }
             }
@@ -210,22 +190,19 @@ public class SpiderServiceImpl implements SpiderService {
     @Override
     public ApiResponse<PageAndRecipes> searchRecipes(String keyword, int page) {
         try {
-            String searchKey = keyword.trim();
-            SEARCH_RECIPES_RETRY_TASK_KEY = SEARCH_RECIPES_RETRY_TASK_KEY + searchKey +":"+  page;
-            SEARCH_RECIPES_CACHE_KEY = SEARCH_RECIPES_CACHE_KEY + searchKey +":"+  page;
-            SEARCH_RECIPES_LOCK_KEY = SEARCH_RECIPES_LOCK_KEY + searchKey +":"+  page;
+            if (page > 1) keyword = keyword.trim() + "&page=" + page;
 
-            if (page > 1) keyword = keyword + "&page=" + page;
+            ArrayList<Object> args = new ArrayList<>();
+            args.add(keyword);
+            args.add(page);
+            List<String> redisKeys = buildRedisKey("searchRecipes", args);
+            String cachedKey = redisKeys.get(0);
+            String retryTaskKey = redisKeys.get(1);
+            String lockKey = redisKeys.get(2);
 
-            // 1. 先检查Redis缓存
-            PageAndRecipes cachedSearchResults = cacheService.get(SEARCH_RECIPES_CACHE_KEY);
-            if (cachedSearchResults != null) {
-                log.info("Returning search results from Redis cache for keyword: {}", keyword);
-                return ApiResponse.success(cachedSearchResults);
-            }
-
+            // 1. 先检查Redis缓存 --> 移动到CacheAsideAspect切面类
             // 2. 检查当前是否有异步任务正在执行
-            String taskStatus = cacheService.get(SEARCH_RECIPES_RETRY_TASK_KEY);
+            String taskStatus = cacheService.get(retryTaskKey);
             if (taskStatus != null) {
                 log.info("Async search recipes retry task is already running: {}", taskStatus);
                 return ApiResponse.error(
@@ -236,7 +213,7 @@ public class SpiderServiceImpl implements SpiderService {
 
             // 3. 尝试获取分布式锁
             String requestId = UUID.randomUUID().toString();
-            boolean locked = cacheService.setIfAbsent(SEARCH_RECIPES_LOCK_KEY, requestId, LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+            boolean locked = cacheService.setIfAbsent(lockKey, requestId, LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
 
             if (!locked) {
                 log.info("Another request is processing search results for keyword: {}, waiting for result", keyword);
@@ -256,8 +233,8 @@ public class SpiderServiceImpl implements SpiderService {
                     searchRecipeCrawler.scheduleRetryCrawl(
                             0,
                             "/search/?keyword=" + keyword + "&cat=1001",
-                            SEARCH_RECIPES_RETRY_TASK_KEY,
-                            SEARCH_RECIPES_CACHE_KEY,
+                            retryTaskKey,
+                            cachedKey,
                             searchRecipeCrawler.getSearchRecipesParser()
                     );
                     return ApiResponse.error(
@@ -265,17 +242,14 @@ public class SpiderServiceImpl implements SpiderService {
                             "Trying to bypass anti-crawling limitations, please try again later"
                     );
                 } else {
-                    // 6. 爬取成功，缓存结果
-                    log.info("Successfully crawled search results for keyword: {}, caching result", keyword);
-                    cacheService.set(SEARCH_RECIPES_CACHE_KEY, searchRecipes, 12, TimeUnit.HOURS);
-
+                    // 6. 爬取成功，缓存结果 --> 移动到CacheAsideAspect切面类
                     return ApiResponse.success(searchRecipes);
                 }
             } finally {
                 // 7. 释放锁，但只释放自己的锁
-                String currentValue = cacheService.get(SEARCH_RECIPES_LOCK_KEY);
+                String currentValue = cacheService.get(lockKey);
                 if (requestId.equals(currentValue)) {
-                    cacheService.delete(SEARCH_RECIPES_LOCK_KEY);
+                    cacheService.delete(lockKey);
                     log.info("Lock released for searchRecipes request: {}", requestId);
                 }
             }
@@ -291,19 +265,17 @@ public class SpiderServiceImpl implements SpiderService {
     @Override
     public ApiResponse<RecipeContent> getRecipeContent(String recipeNo) {
         try {
-            RECIPE_CONTENT_CACHE_KEY = RECIPE_CONTENT_CACHE_KEY + recipeNo;
-            RECIPE_CONTENT_RETRY_TASK_KEY = RECIPE_CONTENT_RETRY_TASK_KEY + recipeNo;
-            RECIPE_CONTENT_LOCK_KEY = RECIPE_CONTENT_LOCK_KEY + recipeNo;
+            ArrayList<Object> args = new ArrayList<>();
+            args.add(recipeNo);
+            List<String> redisKeys = buildRedisKey("getRecipeContent", args);
+            String cachedKey = redisKeys.get(0);
+            String retryTaskKey = redisKeys.get(1);
+            String lockKey = redisKeys.get(2);
 
-            // 1. 先检查Redis缓存
-            RecipeContent cachedRecipeContent = cacheService.get(RECIPE_CONTENT_CACHE_KEY);
-            if (cachedRecipeContent != null) {
-                log.info("Returning recipeContent from Redis cache");
-                return ApiResponse.success(cachedRecipeContent);
-            }
 
+            // 1. 先检查Redis缓存 --> 移动到CacheAsideAspect切面类
             // 2. 检查当前是否有异步任务正在执行
-            String taskStatus = cacheService.get(RECIPE_CONTENT_RETRY_TASK_KEY);
+            String taskStatus = cacheService.get(retryTaskKey);
             if (taskStatus != null) {
                 log.info("Async RecipeContent retry task is already running: {}", taskStatus);
                 return ApiResponse.error(
@@ -314,7 +286,7 @@ public class SpiderServiceImpl implements SpiderService {
 
             // 3. 尝试获取分布式锁
             String requestId = UUID.randomUUID().toString();
-            boolean locked = cacheService.setIfAbsent(RECIPE_CONTENT_LOCK_KEY, requestId, LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+            boolean locked = cacheService.setIfAbsent(lockKey, requestId, LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
 
             if (!locked) {
                 log.info("Another request is processing recipeContent, waiting for result");
@@ -333,8 +305,8 @@ public class SpiderServiceImpl implements SpiderService {
                     recipeContentCrawler.scheduleRetryCrawl(
                             0,
                             "/recipe/" + recipeNo + "/",
-                            RECIPE_CONTENT_RETRY_TASK_KEY,
-                            RECIPE_CONTENT_CACHE_KEY,
+                            retryTaskKey,
+                            cachedKey,
                             recipeContentCrawler.getContentParser()
                     );
 
@@ -344,17 +316,14 @@ public class SpiderServiceImpl implements SpiderService {
                     );
 
                 } else {
-                    // 6. 爬取成功，缓存结果
-                    log.info("Successfully crawled recipeContent, caching result");
-                    cacheService.set(RECIPE_CONTENT_CACHE_KEY, content, 12, TimeUnit.HOURS);
-
+                    // 6. 爬取成功，缓存结果 --> 移动到CacheAsideAspect切面类
                     return ApiResponse.success(content);
                 }
             } finally {
                 // 7. 释放锁，但只释放自己的锁
-                String currentValue = cacheService.get(RECIPE_CONTENT_LOCK_KEY);
+                String currentValue = cacheService.get(lockKey);
                 if (requestId.equals(currentValue)) {
-                    cacheService.delete(RECIPE_CONTENT_LOCK_KEY);
+                    cacheService.delete(lockKey);
                     log.info("Lock released for recipeContent request: {}", requestId);
                 }
             }
@@ -365,5 +334,20 @@ public class SpiderServiceImpl implements SpiderService {
                     "Internal server error: " + e.getMessage()
             );
         }
+    }
+
+    /**
+     * 构建Redis缓存的key
+     */
+    public List<String> buildRedisKey(String methodName, List<Object> args) {
+        StringBuilder cacheSb = new StringBuilder(CACHE_KEY).append(methodName);
+        StringBuilder retryTaskSb = new StringBuilder(RETRY_TASK_KEY).append(methodName);
+        StringBuilder lockSb = new StringBuilder(LOCK_KEY).append(methodName);
+        for (Object arg : args) {
+            cacheSb.append(":").append(arg);
+            retryTaskSb.append(":").append(arg);
+            lockSb.append(":").append(arg);
+        }
+        return Arrays.asList(cacheSb.toString(), retryTaskSb.toString(), lockSb.toString());
     }
 } 

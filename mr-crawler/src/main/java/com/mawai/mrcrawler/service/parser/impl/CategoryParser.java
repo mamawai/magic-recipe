@@ -69,7 +69,10 @@ public class CategoryParser implements Parser<Category> {
 
                         // 设置子分类名称
                         subGroup.setName(h4.text().trim());
-                        subGroup.setLink(h4.select("a").attr("href"));
+                        // /category/12345/
+                        String attr = h4.select("a").attr("href");
+                        String[] split = attr.split("/");
+                        subGroup.setLink(split.length > 2 ? split[2] : attr);
 
                         // 处理对应的ul中的类型
                         if (i < ulElements.size()) {
@@ -80,7 +83,9 @@ public class CategoryParser implements Parser<Category> {
                             for (Element a : liElements) {
                                 CategoryType type = new CategoryType();
                                 type.setName(a.text().trim());
-                                type.setLink(a.attr("href"));
+                                String attr1 = a.attr("href");
+                                String[] split1 = attr1.split("/");
+                                type.setLink(split1.length > 2 ? split1[2] : attr1);
                                 types.add(type);
                             }
 

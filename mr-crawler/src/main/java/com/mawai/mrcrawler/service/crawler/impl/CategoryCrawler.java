@@ -37,7 +37,17 @@ public class CategoryCrawler extends WebCrawler<Category> {
             return null;
         }
     }
-    
+
+    @Override
+    public <R> void saveToDb(R category, String args) {
+        try {
+            dbCacheService.saveCategories((Category) category);
+            log.info("已保存分类到数据库: {}", args);
+        } catch (Exception e) {
+            log.error("保存分类到数据库失败: {}", args, e);
+        }
+    }
+
     /**
      * 获取分类解析器
      * @return 分类解析器
