@@ -62,25 +62,18 @@ public class MrRecipe implements Serializable {
     private String coverImg;
 
     /**
-     * 菜谱简介
+     * 评分
      */
-    @TableField("description")
-    @Schema(description = "菜谱简介")
-    private String description;
+    @TableField("grade")
+    @Schema(description = "评分")
+    private String grade;
 
     /**
-     * 烹饪时间
+     * 提示
      */
-    @TableField("cook_time")
-    @Schema(description = "烹饪时间")
-    private String cookTime;
-
-    /**
-     * 标签
-     */
-    @TableField("tags")
-    @Schema(description = "标签")
-    private String tags;
+    @TableField("tip")
+    @Schema(description = "提示")
+    private String tip;
 
     /**
      * 收藏数
@@ -96,9 +89,15 @@ public class MrRecipe implements Serializable {
     @Schema(description = "来源URL")
     private String sourceUrl;
 
+    /**
+     * 创建时间
+     */
     @TableField("create_time")
     private LocalDateTime createTime;
 
+    /**
+     * 更新时间
+     */
     @TableField("update_time")
     private LocalDateTime updateTime;
 }

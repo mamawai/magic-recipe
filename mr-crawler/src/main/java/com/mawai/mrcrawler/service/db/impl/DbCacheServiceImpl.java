@@ -385,24 +385,30 @@ public class DbCacheServiceImpl implements DbCacheService {
                     .one();
 
             if (recipe != null) {
-                // 创建并填充RecipeContent对象
-                RecipeContent recipeContent = new RecipeContent();
-                recipeContent.setName(recipe.getTitle());
-                recipeContent.setCover(recipe.getCoverImg());
-                
-                // 查询菜谱步骤
+
+                // 先查询菜谱步骤 看是否有数据没有需要爬取
                 List<MrRecipeStep> steps = mrRecipeStepService.lambdaQuery()
                         .eq(MrRecipeStep::getRecipeId, recipe.getId())
                         .orderByAsc(MrRecipeStep::getStepNumber)
                         .list();
 
-                if (steps != null && !steps.isEmpty()) {
+                if (steps == null || steps.isEmpty()) return null;
+
+                // 创建并填充RecipeContent对象
+                RecipeContent recipeContent = new RecipeContent();
+                recipeContent.setName(recipe.getTitle());
+                recipeContent.setCover(recipe.getCoverImg());
+                recipeContent.setGrade(recipe.getGrade());
+                recipeContent.setTip(recipe.getTip());
+
+                if (!steps.isEmpty()) {
                     // 转换步骤格式
                     List<Step> stepList = new ArrayList<>();
                     for (MrRecipeStep step : steps) {
                         Step s = new Step();
                         s.setImg(step.getImageUrl());
                         s.setDesc(step.getDescription());
+                        s.setStep(step.getStepNumber());
                         stepList.add(s);
                     }
                     recipeContent.setSteps(stepList);
@@ -456,13 +462,20 @@ public class DbCacheServiceImpl implements DbCacheService {
                 MrRecipe mrRecipe = mrRecipeService.lambdaQuery()
                         .eq(MrRecipe::getUrlId, recipeNo)
                         .one(); // 先查询菜谱，如果存在则更新，不存在则创建
-                if (mrRecipe == null) mrRecipe = new MrRecipe();
-                mrRecipe.setTitle(recipeContent.getName());
-                mrRecipe.setUrlId(recipeNo);
-                mrRecipe.setCoverImg(recipeContent.getCover());
-                mrRecipe.setCreateTime(LocalDateTime.now());
-                mrRecipe.setUpdateTime(LocalDateTime.now());
-                mrRecipeService.save(mrRecipe);
+                if (mrRecipe == null) {
+                    mrRecipe = new MrRecipe();
+                    mrRecipe.setTitle(recipeContent.getName());
+                    mrRecipe.setUrlId(recipeNo);
+                    mrRecipe.setCoverImg(recipeContent.getCover());
+                    mrRecipe.setCreateTime(LocalDateTime.now());
+                    mrRecipe.setUpdateTime(LocalDateTime.now());
+                    mrRecipe.setTip(recipeContent.getTip());
+                    mrRecipe.setGrade(recipeContent.getGrade());
+                    mrRecipeService.save(mrRecipe);
+                } else {
+                    mrRecipe.setUpdateTime(LocalDateTime.now());
+                    mrRecipeService.updateById(mrRecipe);
+                }
 
                 // 保存步骤
                 if (recipeContent.getSteps() != null) {
